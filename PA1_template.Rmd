@@ -2,19 +2,83 @@
 
 
 ## Loading and preprocessing the data
+Loading and preprocessing data:
+```{r loading,echo=TRUE}
+data<-read.csv('activity.csv')
+data$date<-as.Date(data$date, format="%Y-%m-%d")
 
+```
 
 
 ## What is mean total number of steps taken per day?
+Creating the histogram of the average total number of steps taken each day:
+```{r steps,echo=TRUE}
+datasum<-tapply(data$steps, data$date,sum,na.rm=TRUE)
+barplot(datasum,xlab="Date",ylab="Total number of steps",main="Total number of steps taken each day")
+```
 
-
+The mean of the average total number of steps taken per day is `r mean(datasum,na.rm=TRUE)`, while the median is `r median(datasum,na.rm=TRUE)`.
 
 ## What is the average daily activity pattern?
+Creating a plot of the average steps taken in each 5-minute interval.
+```{r daily,echo=TRUE}
+datasteps<-tapply(data$steps,data$interval,mean,na.rm=TRUE)
+bla<-cbind(interval=unique(data$interval),steps=datasteps)
+bla2<-strptime(unique(sapply(data$interval, formatC, width = 4, flag = 0)),format="%H%M")
+plot(bla2,bla[,2],type="l",xlab="Hour of the day",ylab="Average steps",main="Daily activity")
+```
+
+The interval containing the maximum number of steps is the one starting at `r substr(bla2[which.max(datasteps)],12,19)`
 
 
+## Inputing missing values
+Inserting the mean number of steps for the interval, when the data is missing. There are `r sum(is.na(data))` rows with missing data.
+```{r missing,echo=TRUE}
+data2<-data
+for (i in 1:nrow(data2)){
+  if(is.na(data2$steps[i])){
+    x<-bla[bla[,1]==data2$interval[i]]
+    data2$steps[i]<-x[2]
+  }
+}
+head(data2)
+```
 
-## Imputing missing values
+Creating a histogram with the filled-out dataset.
+```{r newhist,echo=TRUE}
+datasum2<-tapply(data2$steps, data2$date,sum,na.rm=TRUE)
+barplot(datasum2,xlab="Date",ylab="Total number of steps",main="Total number of steps taken each day")
+```
 
+This histogram is not different than the previous version.
+
+The mean of the average total number of steps taken per day is `r mean(datasum2,na.rm=TRUE)`, while the median is `r median(datasum2,na.rm=TRUE)`. These are also the same as those of the original dataset.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Creating a new factor variable with two levels.
+
+```{r weekends,echo=TRUE}
+days<-c()
+for (i in 1:nrow(data2)){
+if (weekdays(as.Date(data2$date[i]))=="Saturday" || weekdays(as.Date(data2$date[i]))=="Sunday"){
+  days[i]<-"weekend"
+}
+else{days[i]<-"weekday"}
+
+}
+data2$day<-factor(days)
+```
+
+
+
+Time series plot for weekdays and weekends.
+```{r plot,echo=TRUE}
+library(data.table)
+data2<-data.table(data2)
+data3<-data2[,mean(steps),by="interval,day"]
+library(lattice)
+xyplot(data3$V1~data3$interval| data3$day,type="l",layout=c(1,2),xlab="Interval",ylab="Number of steps")
+
+```
